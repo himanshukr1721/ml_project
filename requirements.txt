@@ -1,0 +1,10 @@
+# ML Project  
+
+This is a basic machine learning project structure.  
+
+## Installation  
+1. Create a virtual environment  
+2. Install dependencies using `pip install -r requirements.txt`  
+
+## Usage  
+Run the `train.py` script to train the model.  
