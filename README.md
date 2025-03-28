@@ -65,9 +65,14 @@ A **Streamlit-based web application** that predicts the most suitable career pat
    cd career-path-prediction
 
 2. Install the required libraries:
-    ```pip install -r requirements.txt
+   ```bash
+   pip install -r requirements.txt
+
 3. Run the Streamlit app:
-    ```streamlit run app.py
+   ```bash
+   streamlit run app.py
+
+
 
 4. Open the app in your browser at http://localhost:8501.
 
