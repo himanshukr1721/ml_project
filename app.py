@@ -7,481 +7,520 @@ import time
 import streamlit as st
 from db import *
 
-pickleFile=open("weights.pkl","rb")
-regressor=pickle.load(pickleFile) # our model
+# Load the ML model
+pickleFile = open("weights.pkl", "rb")
+regressor = pickle.load(pickleFile)
 
-# **2. Loading Dataset**
-
+# Load dataset
 df = pd.read_csv('./data/mldata.csv')
-df.head()
+df['workshops'] = df['workshops'].replace(['testing'], 'Testing')
 
-df['workshops'] = df['workshops'].replace(['testing'],'Testing')
-df.head()
-
-print(df.columns.unique)
-
-n = df['Suggested Job Role'].unique()
-print(len(n))
-
-print('The shape of our training set: %s professionals and %s features'%(df.shape[0],df.shape[1]))
-
-
-# **5. Feature Engineering**
-
-## (a) Binary Encoding for Categorical Variables
-
-newdf = df
-newdf.head(10)
-
-cols = df[["self-learning capability?", "Extra-courses did","Taken inputs from seniors or elders", "worked in teams ever?", "Introvert"]]
+# Preprocessing - recreating the encoding steps that are in the original code
+# Binary encoding
+cols = df[["self-learning capability?", "Extra-courses did", 
+           "Taken inputs from seniors or elders", "worked in teams ever?", "Introvert"]]
 for i in cols:
-    print(i)
     cleanup_nums = {i: {"yes": 1, "no": 0}}
     df = df.replace(cleanup_nums)
 
-print("\n\nList of Categorical features: \n" , df.select_dtypes(include=['object']).columns.tolist())
-
-## (b) Number Encoding for Categorical 
-
+# Number encoding
 mycol = df[["reading and writing skills", "memory capability score"]]
 for i in mycol:
-    print(i)    
     cleanup_nums = {i: {"poor": 0, "medium": 1, "excellent": 2}}
     df = df.replace(cleanup_nums)
 
-category_cols = df[['certifications', 'workshops', 'Interested subjects', 'interested career area ', 'Type of company want to settle in?', 
+# Category encoding - THIS WAS MISSING
+category_cols = df[['certifications', 'workshops', 'Interested subjects', 
+                    'interested career area ', 'Type of company want to settle in?', 
                     'Interested Type of Books']]
 for i in category_cols:
     df[i] = df[i].astype('category')
     df[i + "_code"] = df[i].cat.codes
 
-print("\n\nList of Categorical features: \n" , df.select_dtypes(include=['object']).columns.tolist())
-
-## (c) Dummy Variable Encoding
-
-print(df['Management or Technical'].unique())
-print(df['hard/smart worker'].unique())
-
+# Dummy encoding
 df = pd.get_dummies(df, columns=["Management or Technical", "hard/smart worker"], prefix=["A", "B"])
-df.head()
 
-df.sort_values(by=['certifications'])
-
-print("List of Numerical features: \n" , df.select_dtypes(include=np.number).columns.tolist())
-
-
-category_cols = df[['certifications', 'workshops', 'Interested subjects', 'interested career area ', 'Type of company want to settle in?', 'Interested Type of Books']]
-for i in category_cols:
-  print(i)
-
+# Now create dictionaries for encoding
 Certifi = list(df['certifications'].unique())
-print(Certifi)
 certi_code = list(df['certifications_code'].unique())
-print(certi_code)
+C = dict(zip(Certifi, certi_code))
 
 Workshops = list(df['workshops'].unique())
-print(Workshops)
 Workshops_code = list(df['workshops_code'].unique())
-print(Workshops_code)
-
-Certi_l = list(df['certifications'].unique())
-certi_code = list(df['certifications_code'].unique())
-C = dict(zip(Certi_l,certi_code))
-
-Workshops = list(df['workshops'].unique())
-print(Workshops)
-Workshops_code = list(df['workshops_code'].unique())
-print(Workshops_code)
-W = dict(zip(Workshops,Workshops_code))
+W = dict(zip(Workshops, Workshops_code))
 
 Interested_subjects = list(df['Interested subjects'].unique())
-print(Interested_subjects)
 Interested_subjects_code = list(df['Interested subjects_code'].unique())
-ISC = dict(zip(Interested_subjects,Interested_subjects_code))
+ISC = dict(zip(Interested_subjects, Interested_subjects_code))
 
 interested_career_area = list(df['interested career area '].unique())
-print(interested_career_area)
 interested_career_area_code = list(df['interested career area _code'].unique())
-ICA = dict(zip(interested_career_area,interested_career_area_code))
+ICA = dict(zip(interested_career_area, interested_career_area_code))
 
 Typeofcompany = list(df['Type of company want to settle in?'].unique())
-print(Typeofcompany)
 Typeofcompany_code = list(df['Type of company want to settle in?_code'].unique())
-TOCO = dict(zip(Typeofcompany,Typeofcompany_code))
+TOCO = dict(zip(Typeofcompany, Typeofcompany_code))
 
 Interested_Books = list(df['Interested Type of Books'].unique())
-print(Interested_subjects)
 Interested_Books_code = list(df['Interested Type of Books_code'].unique())
-IB = dict(zip(Interested_Books,Interested_Books_code))
+IB = dict(zip(Interested_Books, Interested_Books_code))
 
 Range_dict = {"poor": 0, "medium": 1, "excellent": 2}
-print(Range_dict)
 
-
-A = 'yes'
-B = 'No'
-col = [A,B]
-for i in col:
-  if(i=='yes'):
-    i = 1
-  print(i)
-
-
-f =[]
-A = 'r programming'
-clms = ['r programming',0]
-for i in clms:
-  for key in C:
-    if(i==key):
-      i = C[key]
-      f.append(i)
-print(f)
-
-C = dict(zip(Certifi,certi_code))
-  
-print(C)
-
-import numpy as np
-array = np.array([1,2,3,4])
-array.reshape(-1,1)
-
-def inputlist(Name,Contact_Number,Email_address,
+# Prediction function - same as original
+def inputlist(Name, Contact_Number, Email_address,
       Logical_quotient_rating, coding_skills_rating, hackathons, 
       public_speaking_points, self_learning_capability, 
       Extra_courses_did, Taken_inputs_from_seniors_or_elders,
-      worked_in_teams_ever,Introvert, reading_and_writing_skills,
+      worked_in_teams_ever, Introvert, reading_and_writing_skills,
       memory_capability_score, smart_or_hard_work, Management_or_Techinical,
-      Interested_subjects, Interested_Type_of_Books,certifications, workshops, 
+      Interested_subjects, Interested_Type_of_Books, certifications, workshops, 
       Type_of_company_want_to_settle_in, interested_career_area):
-  #1,1,1,1,'Yes','Yes''Yes''Yes''Yes',"poor","poor","Smart worker", "Management","programming","Series","information security"."testing","BPA","testing"
-  Afeed = [Logical_quotient_rating, coding_skills_rating, hackathons, public_speaking_points]
-
-  input_list_col = [self_learning_capability,Extra_courses_did,Taken_inputs_from_seniors_or_elders,worked_in_teams_ever,Introvert,reading_and_writing_skills,memory_capability_score,smart_or_hard_work,Management_or_Techinical,Interested_subjects,Interested_Type_of_Books,certifications,workshops,Type_of_company_want_to_settle_in,interested_career_area]
-  feed = []
-  K=0
-  j=0
-  for i in input_list_col:
-    if(i=='Yes'):
-      j=2
-      feed.append(j)
-       
-      print("feed 1",i)
     
-    elif(i=="No"):
-      j=3
-      feed.append(j)
-       
-      print("feed 2",j)
+    Afeed = [Logical_quotient_rating, coding_skills_rating, hackathons, public_speaking_points]
+
+    input_list_col = [self_learning_capability, Extra_courses_did, Taken_inputs_from_seniors_or_elders,
+                    worked_in_teams_ever, Introvert, reading_and_writing_skills, memory_capability_score,
+                    smart_or_hard_work, Management_or_Techinical, Interested_subjects, Interested_Type_of_Books,
+                    certifications, workshops, Type_of_company_want_to_settle_in, interested_career_area]
+    feed = []
+    K = 0
+    j = 0
     
-    elif(i=='Management'):
-      j=1
-      k=0
-      feed.append(j)
-      feed.append(K)
-       
-      print("feed 10,11",i,j,k)
-
-    elif(i=='Technical'):
-      j=0
-      k=1
-      feed.append(j)
-      feed.append(K)
-       
-      print("feed 12,13",i,j,k)
-
-    elif(i=='Smart worker'):
-      j=1
-      k=0
-      feed.append(j)
-      feed.append(K)
-       
-      print("feed 14,15",i,j,k)
-
-    elif(i=='Hard Worker'):
-      j=0
-      k=1
-      feed.append(j)
-      feed.append(K)
-      print("feed 16,17",i,j,k)
+    for i in input_list_col:
+        if(i == 'Yes'):
+            j = 2
+            feed.append(j)
+        
+        elif(i == "No"):
+            j = 3
+            feed.append(j)
+        
+        elif(i == 'Management'):
+            j = 1
+            k = 0
+            feed.append(j)
+            feed.append(K)
+        
+        elif(i == 'Technical'):
+            j = 0
+            k = 1
+            feed.append(j)
+            feed.append(K)
+        
+        elif(i == 'Smart worker'):
+            j = 1
+            k = 0
+            feed.append(j)
+            feed.append(K)
+        
+        elif(i == 'Hard Worker'):
+            j = 0
+            k = 1
+            feed.append(j)
+            feed.append(K)
+        
+        else:
+            for key in Range_dict:
+                if(i == key):
+                    j = Range_dict[key]
+                    feed.append(j)
+            
+            for key in C:
+                if(i == key):
+                    j = C[key]
+                    feed.append(j)
+            
+            for key in W:
+                if(i == key):
+                    j = W[key]
+                    feed.append(j)
+            
+            for key in ISC:
+                if(i == key):
+                    j = ISC[key]
+                    feed.append(j)
+            
+            for key in ICA:
+                if(i == key):
+                    j = ICA[key]
+                    feed.append(j)
+            
+            for key in TOCO:
+                if(i == key):
+                    j = TOCO[key]
+                    feed.append(j)
+            
+            for key in IB:
+                if(i == key):
+                    j = IB[key]
+                    feed.append(j)
     
-    else:
-      for key in Range_dict:
-        if(i==key):
-          j = Range_dict[key]
-          feed.append(j)
-         
-          print("feed 3",i,j)
+    t = Afeed + feed    
+    output = regressor.predict([t])
+    
+    return(output)
 
-      for key in C:
-        if(i==key):
-          j = C[key]
-          feed.append(j)
-          
-          print("feed 4",i,j)
-      
-      for key in W:
-        if(i==key):
-          j = W[key]
-          feed.append(j)
-          
-          print("feed 5",i,j)
-      
-      for key in ISC:
-        if(i==key):
-          j = ISC[key]
-          feed.append(j)
-          
-          print("feed 6",i,j)
-
-      for key in ICA:
-        if(i==key):
-          j = ICA[key]
-          feed.append(j)
-          
-          print("feed 7",i,j)
-
-      for key in TOCO:
-        if(i==key):
-          j = TOCO[key]
-          feed.append(j)
-          
-          print("feed 8",i,j)
-
-      for key in IB:
-        if(i==key):
-          j = IB[key]
-          feed.append(j)
-          
-          print("feed 9",i,j)
-
-   
-       
-  t = Afeed+feed    
-  output = regressor.predict([t])
-  
-  return(output)
-
-
+# Set page configuration
+st.set_page_config(
+    page_title="Career Path Predictor",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 def main():
+    # Custom CSS
+    st.markdown("""
+    <style>
+    .main {
+        background-color: #f5f7fa;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: #ffffff;
+        border-radius: 5px;
+        padding: 10px 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #4e5de4 !important;
+        color: white !important;
+    }
+    div.block-container {
+        padding-top: 2rem;
+    }
+    div.stButton > button {
+        background-color: #4e5de4;
+        color: white;
+        border-radius: 4px;
+        padding: 0.5rem 2rem;
+        font-weight: bold;
+    }
+    div.stButton > button:hover {
+        background-color: #3a49d3;
+        border-color: #3a49d3;
+    }
+    .header-container {
+        display: flex;
+        align-items: center;
+        background-color: #ffffff;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .header-text {
+        flex: 2;
+    }
+    .header-image {
+        flex: 1;
+        text-align: center;
+    }
+    .stSlider > div > div > div {
+        background-color: #4e5de4;
+    }
+    .card {
+        background-color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+    }
+    .skills-card {
+        background-color: #f8f9fa;
+        border-left: 5px solid #4e5de4;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 5px 5px 0;
+    }
+    .form-header {
+        color: #4e5de4;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    .result-container {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 2rem;
+        margin-top: 2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .footer {
+        text-align: center;
+        margin-top: 3rem;
+        padding: 1rem;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-  # with st.spinner('Wait for it...'):
-  #     time.sleep(5)
-  # st.success('Done!')
+    # Header Section
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        <div style="padding: 20px 0;">
+            <h1 style="color: #4e5de4; font-size: 2.5rem;">Career Path Predictor</h1>
+            <p style="font-size: 1.2rem; color: #555;">Discover your ideal career path based on your skills, preferences, and personality.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.image("./assets/Career _Isometric.png", width=250)
 
-  html1="""
-    <div style="text-align:center; text-shadow: 3px 1px 2px purple;">
-      <h1>👨🏻‍💻 Career Path Prediction app 👨🏻‍💻</h1>
-    </div>
-      """
-  st.markdown(html1,unsafe_allow_html=True) #simple html 
+    # Create tabs for better organization
+    tab1, tab2 = st.tabs(["💼 Career Assessment", "📊 Results & Analytics"])
+    
+    # Store form inputs in session state to persist between tabs
+    if 'form_submitted' not in st.session_state:
+        st.session_state.form_submitted = False
+    
+    if 'prediction_result' not in st.session_state:
+        st.session_state.prediction_result = ""
 
-  # Images
+    # Tab 1: Career Assessment Form
+    with tab1:
+        st.markdown("<h3 class='form-header'>Personal Information</h3>", unsafe_allow_html=True)
+        
+        # Personal Info in columns
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            Name = st.text_input("Full Name")
+            Email_address = st.text_input("Email Address")
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            Contact_Number = st.text_input("Contact Number")
+            st.markdown("<p style='color:#6c757d;font-size:0.9rem;'>Your information is secure and will only be used for this assessment.</p>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Skills Assessment
+        st.markdown("<h3 class='form-header'>Skills & Abilities</h3>", unsafe_allow_html=True)
+        
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            Logical_quotient_rating = st.slider('Logical Quotient Skills', 0, 10, 5)
+            coding_skills_rating = st.slider('Coding Skills', 0, 10, 5)
+        
+        with col2:
+            hackathons = st.slider('Hackathons Participated', 0, 10, 1)
+            public_speaking_points = st.slider('Public Speaking Skills', 0, 10, 5)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Personal Traits in columns
+        st.markdown("<h3 class='form-header'>Personal Traits & Experiences</h3>", unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("<div class='skills-card'>", unsafe_allow_html=True)
+            self_learning_capability = st.selectbox('Self-Learning Capability', ('Yes', 'No'))
+            Extra_courses_did = st.selectbox('Completed Extra Courses', ('Yes', 'No'))
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("<div class='skills-card'>", unsafe_allow_html=True)
+            Taken_inputs_from_seniors_or_elders = st.selectbox('Seek Advice from Seniors', ('Yes', 'No'))
+            worked_in_teams_ever = st.selectbox('Team Collaboration Experience', ('Yes', 'No'))
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown("<div class='skills-card'>", unsafe_allow_html=True)
+            Introvert = st.selectbox('Are You an Introvert?', ('Yes', 'No'))
+            reading_and_writing_skills = st.selectbox('Reading & Writing Skills', ('poor', 'medium', 'excellent'))
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Work Style & Preferences
+        st.markdown("<h3 class='form-header'>Work Style & Preferences</h3>", unsafe_allow_html=True)
+        
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            memory_capability_score = st.selectbox('Memory Capability', ('poor', 'medium', 'excellent'))
+            smart_or_hard_work = st.selectbox('Work Style', ('Smart worker', 'Hard Worker'))
+            Management_or_Techinical = st.selectbox('Preferred Role Type', ('Management', 'Technical'))
+        
+        with col2:
+            Interested_subjects = st.selectbox('Interested Subjects', 
+                ('programming', 'Management', 'data engineering', 'networks', 
+                'Software Engineering', 'cloud computing', 'parallel computing', 
+                'IOT', 'Computer Architecture', 'hacking'))
+            
+            Type_of_company_want_to_settle_in = st.selectbox('Preferred Company Type', 
+                ('BPA', 'Cloud Services', 'product development', 
+                'Testing and Maintainance Services', 'SAaS services', 'Web Services', 
+                'Finance', 'Sales and Marketing', 'Product based', 'Service Based'))
+            
+            interested_career_area = st.selectbox('Interested Career Area', 
+                ('testing', 'system developer', 'Business process analyst', 
+                'security', 'developer', 'cloud computing'))
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Additional Information
+        st.markdown("<h3 class='form-header'>Additional Information</h3>", unsafe_allow_html=True)
+        
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            certifications = st.selectbox('Certifications Completed', 
+                ('information security', 'shell programming', 'r programming', 
+                'distro making', 'machine learning', 'full stack', 
+                'hadoop', 'app development', 'python'))
+        
+        with col2:
+            workshops = st.selectbox('Workshops Attended', 
+                ('Testing', 'database security', 'game development', 
+                'data science', 'system designing', 'hacking', 
+                'cloud computing', 'web technologies'))
+        
+        Interested_Type_of_Books = st.selectbox('Preferred Book Categories', 
+            ('Series', 'Autobiographies', 'Travel', 'Guide', 'Health', 
+            'Journals', 'Anthology', 'Dictionaries', 'Prayer books', 
+            'Art', 'Encyclopedias', 'Religion-Spirituality', 
+            'Action and Adventure', 'Comics', 'Horror', 'Satire', 
+            'Self help', 'History', 'Cookbooks', 'Math', 'Biographies', 
+            'Drama', 'Diaries', 'Science fiction', 'Poetry', 'Romance', 
+            'Science', 'Trilogy', 'Fantasy', 'Childrens', 'Mystery'))
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Submit Button
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            submit_button = st.button("Predict My Career Path", use_container_width=True)
+        
+        if submit_button:
+            if not Name or not Email_address:
+                st.error("Please provide your name and email address to continue.")
+            else:
+                with st.spinner("Analyzing your profile..."):
+                    # Progress bar with a more professional look
+                    progress_bar = st.progress(0)
+                    for percent_complete in range(100):
+                        time.sleep(0.02)  # Faster animation
+                        progress_bar.progress(percent_complete + 1)
+                    
+                    # Make prediction
+                    result = inputlist(Name, Contact_Number, Email_address, 
+                                     Logical_quotient_rating, coding_skills_rating, hackathons, 
+                                     public_speaking_points, self_learning_capability, Extra_courses_did, 
+                                     Taken_inputs_from_seniors_or_elders, worked_in_teams_ever, Introvert,
+                                     reading_and_writing_skills, memory_capability_score, smart_or_hard_work, 
+                                     Management_or_Techinical, Interested_subjects, Interested_Type_of_Books,
+                                     certifications, workshops, Type_of_company_want_to_settle_in, interested_career_area)
+                    
+                    # Store result in session state
+                    st.session_state.prediction_result = result
+                    st.session_state.form_submitted = True
+                    
+                    # Database operations
+                    create_table()
+                    add_data(Name, Contact_Number, Email_address, Logical_quotient_rating, coding_skills_rating, hackathons, 
+                           public_speaking_points, self_learning_capability, Extra_courses_did, 
+                           Taken_inputs_from_seniors_or_elders, worked_in_teams_ever, Introvert,
+                           reading_and_writing_skills, memory_capability_score, smart_or_hard_work, 
+                           Management_or_Techinical, Interested_subjects, Interested_Type_of_Books,
+                           certifications, workshops, Type_of_company_want_to_settle_in, interested_career_area)
+                    
+                    # Trigger balloons effect
+                    st.balloons()
 
-  col1, col2, col3 = st.columns(3)
-
-  with col1:
-      st.image("./assets/Career _Isometric.png")
-
-  with col2:
-      st.image("./assets/career.png")
-
-  with col3:
-      st.image("./assets/Career _Outline.png")
-
-  html2="""
-    <div style="text-align:center; text-shadow: 3px 1px 2px purple;">
-      <h2>Your Friendly Career Advisor<h2>
-    </div>
-      """
-  st.markdown(html2,unsafe_allow_html=True) #simple html 
- 
-  st.sidebar.title("Your Information")
-
-  Name = st.sidebar.text_input("Full Name")
-
-  Contact_Number = st.sidebar.text_input("Contact Number")
-
-  Email_address = st.sidebar.text_input("Email address")
-
-  if not Name and Email_address:
-    st.sidebar.warning("Please fill out your name and EmailID")
-
-  if Name and Contact_Number and Email_address:
-    st.sidebar.success("Thanks!")
-
-  Logical_quotient_rating = st.slider(
-    'Rate your Logical quotient Skills', 0,10,1)
-  st.write(Logical_quotient_rating)
-
-  coding_skills_rating = st.slider(
-    'Rate your Coding Skills', 0,10,1)
-  st.write(coding_skills_rating)
-
-  hackathons = st.slider(
-    'Enter number of Hackathons participated',0,10,1)
-  st.write(hackathons)
-
-  public_speaking_points = st.slider(
-    'Rate Your Public Speaking', 0,10,1)
-  st.write(public_speaking_points)
-
-  self_learning_capability = st.selectbox(
-    'Self Learning Capability',
-    ('Yes', 'No')
-    )
-  # st.write('You selected:', self_learning_capability)
-
-  Extra_courses_did = st.selectbox(
-    'Extra courses',
-  ('Yes', 'No')
-  )
-  # st.write('You selected:', Extra_courses_did)
-
-  Taken_inputs_from_seniors_or_elders = st.selectbox(
-    'Took advice from seniors or elders',
-    ('Yes', 'No')
-    )
-  # st.write('You selected:', Taken_inputs_from_seniors_or_elders)
-
-  worked_in_teams_ever = st.selectbox(
-    'Team Co-ordination Skill',
-    ('Yes', 'No')
-    )
-  # st.write('You selected:', worked_in_teams_ever)
-
-  Introvert = st.selectbox(
-    'Introvert',
-    ('Yes', 'No')
-    )
-  # st.write('You selected:', Introvert)
-
-  reading_and_writing_skills = st.selectbox(
-    'Reading and writing skills',
-    ('poor','medium','excellent')
-    )
-  st.write('You selected: **{}**' .format(reading_and_writing_skills))
-
-  memory_capability_score = st.selectbox(
-    'Memory capability score',
-    ('poor','medium','excellent')
-    )
-  st.write('You selected: **{}**' .format(memory_capability_score))
-
-  smart_or_hard_work = st.selectbox(
-    'Smart or Hard Work',
-    ('Smart worker', 'Hard Worker')
-    )
-  st.write('You selected: **{}**' .format(smart_or_hard_work))
-
-  Management_or_Techinical = st.selectbox(
-    'Management or Techinical',
-    ('Management', 'Technical')
-    )
-  st.write('You selected: **{}**' .format(Management_or_Techinical))
-
-  Interested_subjects = st.selectbox(
-    'Interested Subjects',
-    ('programming', 'Management', 'data engineering', 'networks', 'Software Engineering', 'cloud computing', 'parallel computing', 'IOT', 'Computer Architecture', 'hacking')
-    )
-  st.write('You selected: **{}**' .format(Interested_subjects))
-
-  Interested_Type_of_Books = st.selectbox(
-    'Interested Books Category',
-    ('Series', 'Autobiographies', 'Travel', 'Guide', 'Health', 'Journals', 'Anthology', 'Dictionaries', 'Prayer books', 'Art', 'Encyclopedias', 'Religion-Spirituality', 'Action and Adventure', 'Comics', 'Horror', 'Satire', 'Self help', 'History', 'Cookbooks', 'Math', 'Biographies', 'Drama', 'Diaries', 'Science fiction', 'Poetry', 'Romance', 'Science', 'Trilogy', 'Fantasy', 'Childrens', 'Mystery')
-    )
-  st.write('You selected: **{}**' .format(Interested_Type_of_Books))
-
-  certifications = st.selectbox(
-    'Types of Certification Done',
-    ('information security', 'shell programming', 'r programming', 'distro making', 'machine learning', 'full stack', 'hadoop', 'app development', 'python')
-    )
-  st.write('You selected: **{}**' .format(certifications))
-
-  workshops = st.selectbox(
-    'Workshops Attended',
-    ('Testing', 'database security', 'game development', 'data science', 'system designing', 'hacking', 'cloud computing', 'web technologies')
-    )
-  st.write('You selected: **{}**' .format(workshops))
-  
-  Type_of_company_want_to_settle_in = st.selectbox(
-    'Type of Company You Want to Settle In ',
-    ('BPA', 'Cloud Services', 'product development', 'Testing and Maintainance Services', 'SAaS services', 'Web Services', 'Finance', 'Sales and Marketing', 'Product based', 'Service Based')
-    )
-  st.write('You selected: **{}**' .format(Type_of_company_want_to_settle_in))
-  
-  interested_career_area = st.selectbox(
-    'Interested Career Area',
-    ('testing', 'system developer', 'Business process analyst', 'security', 'developer', 'cloud computing')
-    )
-  st.write('You selected: **{}**' .format(interested_career_area))
-  
-  result=""
-  
-  if st.button("Predict"):
-    result=inputlist(Name,Contact_Number,Email_address,Logical_quotient_rating, coding_skills_rating, hackathons, 
-                    public_speaking_points, self_learning_capability,Extra_courses_did, 
-                     Taken_inputs_from_seniors_or_elders,worked_in_teams_ever, Introvert,
-                     reading_and_writing_skills,memory_capability_score, smart_or_hard_work, 
-                     Management_or_Techinical,Interested_subjects, Interested_Type_of_Books,
-                     certifications, workshops, Type_of_company_want_to_settle_in, interested_career_area) 
-
-    # Progress bar
-    my_bar = st.progress(0)
-    for percent_complete in range(100):
-        time.sleep(0.05)
-        my_bar.progress(percent_complete + 1)
-
-    # Balloons
-    st.balloons()
-
-    #result will be displayed if button is pressed
-    st.success("Predicted Career Option : "
-               "{}".format(result))
-
-    # Plot
-    corr = df[['Logical quotient rating', 'hackathons', 
+    # Tab 2: Results & Analytics
+    with tab2:
+        if st.session_state.form_submitted:
+            st.markdown("""
+            <div class="result-container">
+                <img src="./assets/career.png" width="120">
+                <h2 style="color: #4e5de4; margin-top: 1rem;">Your Ideal Career Path</h2>
+                <h1 style="font-size: 2.2rem; font-weight: bold; color: #333; margin: 1rem 0;">
+                    {0}
+                </h1>
+                <p style="color: #666; font-size: 1.1rem;">
+                    Based on your skills, interests, and preferences, we've identified this as your ideal career path.
+                </p>
+            </div>
+            """.format(st.session_state.prediction_result[0]), unsafe_allow_html=True)
+            
+            # Analytics Section
+            st.markdown("<h3 class='form-header' style='margin-top: 2rem;'>Skills Analytics</h3>", unsafe_allow_html=True)
+            
+            # Feature correlation plot
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            corr = df[['Logical quotient rating', 'hackathons', 
            'coding skills rating', 'public speaking points']].corr()
-    f,axes = plt.subplots(1,1,figsize = (10,10))
-    sns.heatmap(corr,square=True,annot = True,linewidth = .4,center = 2,ax = axes)
-    st.subheader("Here are some nerdy analytics 😁")
-    st.text("Correlation Between Numerical Features")
-    st.pyplot(f)
+            f,axes = plt.subplots(1,1,figsize = (10,10))
+            sns.heatmap(corr,square=True,annot = True,linewidth = .4,center = 2,ax = axes)
+            st.subheader("Here are some nerdy analytics 😁")
+            st.text("Correlation Between Numerical Features")
+            st.pyplot(f)
 
-    # Expander
-    with st.expander("See explanation"):
-     st.write("""
-         The plot above shows the correlation of the features.
-         As we can see, no highly correlated pair is found!
-     """)
-
-    create_table()
-    add_data(Name,Contact_Number,Email_address,Logical_quotient_rating, coding_skills_rating, hackathons, 
-            public_speaking_points, self_learning_capability,Extra_courses_did, 
-            Taken_inputs_from_seniors_or_elders,worked_in_teams_ever, Introvert,
-            reading_and_writing_skills,memory_capability_score, smart_or_hard_work, 
-            Management_or_Techinical,Interested_subjects, Interested_Type_of_Books,
-            certifications, workshops, Type_of_company_want_to_settle_in, interested_career_area)
-
-  # if choice == "Add Post":
-  #     st.subheader("Add Your Article")
-  #     create_table()
-  #     blog_title = st.text_input('Enter Post Title')
-  #     blog_author = st.text_input("Enter Author Name",max_chars=50)
-  #     blog_article = st.text_area("Enter Your Message",height=200)
-  #     blog_post_date = st.date_input("Post Date")
-  #     if st.button("Add"):
-  #       add_data(blog_author,blog_title,blog_article,blog_post_date)
-  #       st.success("Post::'{}' Saved".format(blog_title))
-
-  html3="""
-
-    <div style="color:yellow; margin:80px; text-align:center;">
-      Developed with ❤️ by me
+            
+            with st.expander("What does this correlation mean?"):
+                st.write("""
+                This heatmap shows the relationships between different skills in our dataset:
+                
+                - **Positive correlation** (closer to 1): When one skill increases, the other tends to increase as well.
+                - **Negative correlation** (closer to -1): When one skill increases, the other tends to decrease.
+                - **No correlation** (closer to 0): The skills don't have a consistent relationship.
+                
+                Understanding these relationships can help you focus on complementary skills for your career development.
+                """)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            # Career recommendations
+            st.markdown("<h3 class='form-header'>Next Steps</h3>", unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("<div class='card'>", unsafe_allow_html=True)
+                st.markdown("""
+                <h4 style="color: #4e5de4;">Recommended Skills to Develop</h4>
+                <ul style="list-style-type: none; padding-left: 0;">
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ Advanced problem-solving techniques</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ Communication and presentation skills</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ Team collaboration and project management</li>
+                    <li style="padding: 8px 0;">✅ Industry-specific technical knowledge</li>
+                </ul>
+                """, unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("<div class='card'>", unsafe_allow_html=True)
+                st.markdown("""
+                <h4 style="color: #4e5de4;">Recommended Resources</h4>
+                <ul style="list-style-type: none; padding-left: 0;">
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">📚 Online courses and certifications</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">📚 Industry conferences and networking events</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">📚 Professional mentorship programs</li>
+                    <li style="padding: 8px 0;">📚 Industry-specific projects and challenges</li>
+                </ul>
+                """, unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+        else:
+            st.info("Please complete the assessment form in the 'Career Assessment' tab to see your results.")
+            if st.button("Go to Assessment Form"):
+                pass  # The JavaScript redirect doesn't work in Streamlit, so we'll just rely on the tab UI
+    
+    # Footer
+    st.markdown("""
+    <div class="footer">
+        <p>Developed with ❤️ | © 2025 Career Path Predictor</p>
     </div>
-      """
+    """, unsafe_allow_html=True)
 
-  st.markdown(html3,unsafe_allow_html=True)
-
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
